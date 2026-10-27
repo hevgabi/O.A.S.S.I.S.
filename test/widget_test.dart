@@ -33,6 +33,11 @@ void main() {
 
     expect(find.text('Student'), findsOneWidget);
     expect(find.text('Knowledge Base'), findsNothing);
+
+    await tester.tap(find.text('Log out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome'), findsOneWidget);
   });
 
   testWidgets('Admin login opens the Knowledge Base', (
@@ -47,5 +52,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add entry'), findsOneWidget);
+
+    await tester.tap(find.text('Log out'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Welcome'), findsOneWidget);
   });
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app_routes.dart';
 import '../../models/knowledge_entry.dart';
+import '../../services/auth_service.dart';
 import '../../services/knowledge_base_service.dart';
 import 'interaction_logs_screen.dart';
 import 'unanswered_inquiries_screen.dart';
@@ -142,6 +144,13 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
     }
   }
 
+  void _logOut() {
+    AuthService.instance.signOut();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.entry, (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,14 +162,26 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
                 children: [
-                  const Text(
-                    'Knowledge Base',
-                    style: TextStyle(
-                      color: _ink,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Knowledge Base',
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _logOut,
+                        icon: const Icon(Icons.logout_outlined, size: 18),
+                        label: const Text('Log out'),
+                        style: TextButton.styleFrom(foregroundColor: _ink),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   const Text(

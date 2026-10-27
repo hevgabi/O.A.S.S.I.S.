@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../app_routes.dart';
 import '../../models/interaction_log.dart';
 import '../../services/admin_service.dart';
+import '../../services/auth_service.dart';
 import 'knowledge_base_screen.dart';
 import 'unanswered_inquiries_screen.dart';
 
@@ -61,6 +63,13 @@ class InteractionLogsScreen extends StatelessWidget {
     }
   }
 
+  void _logOut(BuildContext context) {
+    AuthService.instance.signOut();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.entry, (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final logs = AdminService.instance.getInteractionLogs();
@@ -75,6 +84,14 @@ class InteractionLogsScreen extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFFFDFEFE),
         elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () => _logOut(context),
+            icon: const Icon(Icons.logout_outlined, size: 18),
+            label: const Text('Log out'),
+            style: TextButton.styleFrom(foregroundColor: _ink),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),

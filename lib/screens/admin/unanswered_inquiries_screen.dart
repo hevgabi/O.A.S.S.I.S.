@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../app_routes.dart';
 import '../../models/unanswered_inquiry.dart';
 import '../../services/admin_service.dart';
+import '../../services/auth_service.dart';
 import 'interaction_logs_screen.dart';
 import 'knowledge_base_screen.dart';
 
@@ -59,6 +61,13 @@ class UnansweredInquiriesScreen extends StatelessWidget {
     }
   }
 
+  void _logOut(BuildContext context) {
+    AuthService.instance.signOut();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.entry, (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final inquiries = AdminService.instance.getUnansweredInquiries();
@@ -73,6 +82,14 @@ class UnansweredInquiriesScreen extends StatelessWidget {
         ),
         backgroundColor: const Color(0xFFFDFEFE),
         elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () => _logOut(context),
+            icon: const Icon(Icons.logout_outlined, size: 18),
+            label: const Text('Log out'),
+            style: TextButton.styleFrom(foregroundColor: _ink),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
