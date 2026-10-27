@@ -5,6 +5,7 @@ import 'screens/admin/interaction_logs_screen.dart';
 import 'screens/admin/knowledge_base_screen.dart';
 import 'screens/admin/unanswered_inquiries_screen.dart';
 import 'screens/entry_screen.dart';
+import 'screens/splash_screen.dart';
 import 'screens/student_chat_screen.dart';
 import 'screens/visitor_chat_screen.dart';
 import 'services/auth_service.dart';
@@ -23,7 +24,7 @@ class MyApp extends StatelessWidget {
       title: 'OASSIS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRoutes.entry,
+      initialRoute: AppRoutes.splash,
       onGenerateRoute: _onGenerateRoute,
     );
   }
@@ -42,6 +43,7 @@ class MyApp extends StatelessWidget {
     }
 
     final page = switch (routeName) {
+      AppRoutes.splash => const SplashScreen(),
       AppRoutes.entry => const EntryScreen(),
       AppRoutes.visitorChat => const VisitorChatScreen(),
       AppRoutes.studentChat => const StudentChatScreen(),
