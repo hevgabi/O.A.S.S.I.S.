@@ -1,13 +1,60 @@
 import 'package:flutter/material.dart';
-import 'visitor_chat_screen.dart';
 
-class EntryScreen extends StatelessWidget {
+import '../app_routes.dart';
+import '../models/app_user.dart';
+import '../services/auth_service.dart';
+
+class EntryScreen extends StatefulWidget {
   const EntryScreen({super.key});
+
+  @override
+  State<EntryScreen> createState() => _EntryScreenState();
+}
+
+class _EntryScreenState extends State<EntryScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  String? _loginError;
 
   static const Color black = Colors.black;
   static const Color fieldGray = Color(0xFFEEEEEE);
   static const Color buttonGray = Color(0xFFC4C4C4);
   static const Color borderGray = Color(0xFF666666);
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _signIn() {
+    final user = AuthService.instance.signIn(
+      email: _emailController.text,
+      password: _passwordController.text,
+    );
+
+    if (user == null) {
+      setState(() {
+        _loginError =
+            'Use admin@mail.com or student@mail.com with password 123.';
+      });
+      return;
+    }
+
+    final destination = user.role == AppUserRole.admin
+        ? AppRoutes.knowledgeBase
+        : AppRoutes.studentChat;
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(destination, (route) => false);
+  }
+
+  void _continueAsVisitor() {
+    AuthService.instance.signOut();
+    Navigator.of(context).pushNamed(AppRoutes.visitorChat);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +123,9 @@ class EntryScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           TextField(
+                            controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
                             decoration: _fieldDecoration('Email'),
                           ),
                           const SizedBox(height: 26),
@@ -90,17 +139,19 @@ class EntryScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 10),
                           TextField(
+                            controller: _passwordController,
                             obscureText: true,
+                            onSubmitted: (_) => _signIn(),
                             decoration: _fieldDecoration('Password'),
                           ),
                           const SizedBox(height: 34),
                           SizedBox(
                             height: 58,
                             child: ElevatedButton(
-                              onPressed: null,
+                              onPressed: _signIn,
                               style: ElevatedButton.styleFrom(
-                                disabledBackgroundColor: buttonGray,
-                                disabledForegroundColor: black,
+                                backgroundColor: buttonGray,
+                                foregroundColor: black,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -115,17 +166,19 @@ class EntryScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (_loginError != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _loginError!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: black),
+                            ),
+                          ],
                           const SizedBox(height: 20),
                           SizedBox(
                             height: 58,
                             child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const VisitorChatScreen(),
-                                  ),
-                                );
-                              },
+                              onPressed: _continueAsVisitor,
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: black,
                                 side: const BorderSide(

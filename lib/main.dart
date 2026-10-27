@@ -1,7 +1,13 @@
-// App entry point: start OASSIS and connect its shared theme and screens here.
-// The Flutter starter screen remains in place until the team builds the UI.
 import 'package:flutter/material.dart';
 
+import 'app_routes.dart';
+import 'screens/admin/interaction_logs_screen.dart';
+import 'screens/admin/knowledge_base_screen.dart';
+import 'screens/admin/unanswered_inquiries_screen.dart';
+import 'screens/entry_screen.dart';
+import 'screens/student_chat_screen.dart';
+import 'screens/visitor_chat_screen.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -14,40 +20,44 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'OASS',
+      title: 'OASSIS',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const StarterScreen(),
+      initialRoute: AppRoutes.entry,
+      onGenerateRoute: _onGenerateRoute,
     );
   }
-}
 
-class StarterScreen extends StatefulWidget {
-  const StarterScreen({super.key});
+  Route<dynamic> _onGenerateRoute(RouteSettings settings) {
+    final routeName = settings.name ?? AppRoutes.entry;
 
-  @override
-  State<StarterScreen> createState() => _StarterScreenState();
-}
+    if (_isAdminRoute(routeName) && !AuthService.instance.isAdmin) {
+      final fallback = AuthService.instance.isStudent
+          ? const StudentChatScreen()
+          : const EntryScreen();
+      return MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => fallback,
+      );
+    }
 
-class _StarterScreenState extends State<StarterScreen> {
-  int counter = 0;
+    final page = switch (routeName) {
+      AppRoutes.entry => const EntryScreen(),
+      AppRoutes.visitorChat => const VisitorChatScreen(),
+      AppRoutes.studentChat => const StudentChatScreen(),
+      AppRoutes.knowledgeBase => const KnowledgeBaseScreen(),
+      AppRoutes.unansweredInquiries => const UnansweredInquiriesScreen(),
+      AppRoutes.interactionLogs => const InteractionLogsScreen(),
+      _ => const EntryScreen(),
+    };
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('OASSIS'),
-      ),
-      body: Center(
-        child: Text('$counter'),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            counter++;
-          });
-        },
-        child: const Icon(Icons.add),
-      ),
-    );
+    return MaterialPageRoute<void>(settings: settings, builder: (_) => page);
   }
+
+  bool _isAdminRoute(String routeName) => switch (routeName) {
+    AppRoutes.knowledgeBase ||
+    AppRoutes.unansweredInquiries ||
+    AppRoutes.interactionLogs => true,
+    _ => false,
+  };
 }
