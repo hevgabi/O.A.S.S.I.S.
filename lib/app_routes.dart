@@ -2,6 +2,7 @@
 class AppRoutes {
   static const splash = '/splash';
   static const entry = '/';
+  static const activateAccount = '/activate-account';
   // Chat routes
 
   //Visitor and Student routes

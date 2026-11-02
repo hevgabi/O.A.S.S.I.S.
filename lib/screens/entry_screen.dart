@@ -15,6 +15,8 @@ class _EntryScreenState extends State<EntryScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _loginError;
+  bool _isSigningIn = false;
+  bool _hidePassword = true;
 
   static const Color black = Colors.black;
   static const Color fieldGray = Color(0xFFEEEEEE);
@@ -28,16 +30,33 @@ class _EntryScreenState extends State<EntryScreen> {
     super.dispose();
   }
 
-  void _signIn() {
-    final user = AuthService.instance.signIn(
+  Future<void> _signIn() async {
+    if (_isSigningIn) return;
+
+    setState(() {
+      _isSigningIn = true;
+      _loginError = null;
+    });
+
+    final result = await AuthService.instance.signIn(
       email: _emailController.text,
       password: _passwordController.text,
     );
 
-    if (user == null) {
+    if (!mounted) return;
+
+    final user = result.user;
+    if (!result.isSuccess || user == null) {
+      if (result.failure == AuthFailure.accountNotActivated) {
+        await Navigator.of(context).pushNamed(
+          AppRoutes.activateAccount,
+          arguments: result.email ?? _emailController.text.trim(),
+        );
+        if (!mounted) return;
+      }
       setState(() {
-        _loginError =
-            'Use admin@mail.com or student@mail.com with password 123.';
+        _isSigningIn = false;
+        _loginError = _messageFor(result.failure);
       });
       return;
     }
@@ -51,9 +70,42 @@ class _EntryScreenState extends State<EntryScreen> {
     ).pushNamedAndRemoveUntil(destination, (route) => false);
   }
 
+  String _messageFor(AuthFailure? failure) => switch (failure) {
+    AuthFailure.accountNotActivated =>
+      'Activate your provisioned Student account before signing in.',
+    AuthFailure.accountDisabled =>
+      'This account is disabled. Contact an administrator for help.',
+    AuthFailure.invalidActivationCode =>
+      'That activation code is not valid. Try again or contact support.',
+    AuthFailure.network =>
+      'We could not reach the service. Check your connection and try again.',
+    AuthFailure.backend =>
+      'The service is unavailable. Please try again later.',
+    AuthFailure.signedOut => 'Your session ended. Please sign in again.',
+    _ => 'Incorrect email or password.',
+  };
+
   void _continueAsVisitor() {
     AuthService.instance.signOut();
     Navigator.of(context).pushNamed(AppRoutes.visitorChat);
+  }
+
+  void _showForgotPassword() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Password help'),
+        content: const Text(
+          'Account recovery will be connected to the approved backend. For now, contact the administrator who provisioned your Student account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -140,15 +192,37 @@ class _EntryScreenState extends State<EntryScreen> {
                           const SizedBox(height: 10),
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _hidePassword,
                             onSubmitted: (_) => _signIn(),
-                            decoration: _fieldDecoration('Password'),
+                            decoration: _fieldDecoration(
+                              'Password',
+                              suffixIcon: IconButton(
+                                tooltip: _hidePassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                icon: Icon(
+                                  _hidePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () => setState(
+                                  () => _hidePassword = !_hidePassword,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showForgotPassword,
+                              child: const Text('Forgot password?'),
+                            ),
                           ),
                           const SizedBox(height: 34),
                           SizedBox(
                             height: 58,
                             child: ElevatedButton(
-                              onPressed: _signIn,
+                              onPressed: _isSigningIn ? null : _signIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: buttonGray,
                                 foregroundColor: black,
@@ -157,8 +231,8 @@ class _EntryScreenState extends State<EntryScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: const Text(
-                                'Sign in',
+                              child: Text(
+                                _isSigningIn ? 'Signing in...' : 'Sign in',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w600,
@@ -211,12 +285,13 @@ class _EntryScreenState extends State<EntryScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
+  InputDecoration _fieldDecoration(String hint, {Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(fontSize: 18, color: Colors.black45),
       filled: true,
       fillColor: fieldGray,
+      suffixIcon: suffixIcon,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),
