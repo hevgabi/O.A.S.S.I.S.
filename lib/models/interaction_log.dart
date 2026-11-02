@@ -1,17 +1,25 @@
+import 'unanswered_inquiry.dart';
+
 class InteractionLog {
   const InteractionLog({
     required this.id,
-    required this.questioner,
-    required this.email,
-    required this.role,
-    required this.inquiry,
-    required this.submittedAt,
+    required this.question,
+    required this.recordedAt,
+    required this.sourceType,
+    this.studentIdentity,
   });
 
   final String id;
-  final String questioner;
-  final String email;
-  final String role;
-  final String inquiry;
-  final DateTime submittedAt;
+  final String question;
+  final DateTime recordedAt;
+  final InquirySourceType sourceType;
+
+  /// Populated only when a persistent Student profile is available.
+  final String? studentIdentity;
+
+  String get sourceLabel => switch (sourceType) {
+    InquirySourceType.student => 'Student',
+    InquirySourceType.visitor => 'Visitor · anonymous',
+    InquirySourceType.unknown => 'Source unavailable',
+  };
 }

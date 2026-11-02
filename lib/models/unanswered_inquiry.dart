@@ -1,15 +1,21 @@
+enum InquirySourceType { student, visitor, unknown }
+
 class UnansweredInquiry {
   const UnansweredInquiry({
     required this.id,
     required this.question,
-    required this.questioner,
-    required this.role,
-    required this.submittedAt,
+    required this.recordedAt,
+    required this.sourceType,
   });
 
   final String id;
   final String question;
-  final String questioner;
-  final String role;
-  final DateTime submittedAt;
+  final DateTime recordedAt;
+  final InquirySourceType sourceType;
+
+  String get sourceLabel => switch (sourceType) {
+    InquirySourceType.student => 'Student',
+    InquirySourceType.visitor => 'Visitor',
+    InquirySourceType.unknown => 'Source unavailable',
+  };
 }
