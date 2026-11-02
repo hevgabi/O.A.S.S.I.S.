@@ -4,18 +4,20 @@ enum AuthFailure {
   invalidCredentials,
   accountNotActivated,
   accountDisabled,
+  invalidActivationCode,
   signedOut,
   network,
   backend,
 }
 
 class AuthResult {
-  const AuthResult.success(this.user) : failure = null;
+  const AuthResult.success(this.user, {this.email}) : failure = null;
 
-  const AuthResult.failure(this.failure) : user = null;
+  const AuthResult.failure(this.failure, {this.email}) : user = null;
 
   final AppUser? user;
   final AuthFailure? failure;
+  final String? email;
 
   bool get isSuccess => user != null && failure == null;
 }
@@ -27,39 +29,85 @@ class AuthResult {
 abstract interface class AuthBackend {
   Future<AuthResult> signIn({required String email, required String password});
 
+  Future<AuthResult> activateStudent({
+    required String email,
+    required String activationCode,
+    required String password,
+  });
+
   Future<AppUser?> refreshSession();
 }
 
 /// Temporary demo implementation. Keep it until the approved backend is ready.
 class DemoAuthBackend implements AuthBackend {
+  final Map<String, _DemoAccount> _accounts = {
+    'admin@mail.com': _DemoAccount(
+      id: 'demo-admin',
+      role: AppUserRole.admin,
+      status: AccountStatus.active,
+      password: '123',
+    ),
+    'student@mail.com': _DemoAccount(
+      id: 'demo-student',
+      role: AppUserRole.student,
+      status: AccountStatus.active,
+      password: '123',
+    ),
+    'provisioned@mail.com': _DemoAccount(
+      id: 'demo-provisioned-student',
+      role: AppUserRole.student,
+      status: AccountStatus.provisioned,
+    ),
+    'disabled@mail.com': _DemoAccount(
+      id: 'demo-disabled-student',
+      role: AppUserRole.student,
+      status: AccountStatus.disabled,
+      password: '123',
+    ),
+  };
+
   @override
   Future<AuthResult> signIn({
     required String email,
     required String password,
   }) async {
-    if (password != '123') {
+    final normalizedEmail = email.trim().toLowerCase();
+    final account = _accounts[normalizedEmail];
+    if (account == null) {
+      return const AuthResult.failure(AuthFailure.invalidCredentials);
+    }
+    if (account.status == AccountStatus.provisioned) {
+      return AuthResult.success(account.toUser(normalizedEmail));
+    }
+    if (account.password != password) {
       return const AuthResult.failure(AuthFailure.invalidCredentials);
     }
 
-    final user = switch (email.trim().toLowerCase()) {
-      'admin@mail.com' => const AppUser(
-        id: 'demo-admin',
-        email: 'admin@mail.com',
-        role: AppUserRole.admin,
-        status: AccountStatus.active,
-      ),
-      'student@mail.com' => const AppUser(
-        id: 'demo-student',
-        email: 'student@mail.com',
-        role: AppUserRole.student,
-        status: AccountStatus.active,
-      ),
-      _ => null,
-    };
+    return AuthResult.success(account.toUser(normalizedEmail));
+  }
 
-    return user == null
-        ? const AuthResult.failure(AuthFailure.invalidCredentials)
-        : AuthResult.success(user);
+  @override
+  Future<AuthResult> activateStudent({
+    required String email,
+    required String activationCode,
+    required String password,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final account = _accounts[normalizedEmail];
+    if (account == null || activationCode != 'OASSIS-123') {
+      return const AuthResult.failure(AuthFailure.invalidActivationCode);
+    }
+    if (account.status == AccountStatus.disabled) {
+      return const AuthResult.failure(AuthFailure.accountDisabled);
+    }
+    if (account.status != AccountStatus.provisioned) {
+      return const AuthResult.failure(AuthFailure.invalidActivationCode);
+    }
+
+    account
+      ..password = password
+      ..status = AccountStatus.active;
+    return AuthResult.success(account.toUser(normalizedEmail));
   }
 
   @override
@@ -97,7 +145,10 @@ class AuthService {
 
       if (user.status == AccountStatus.provisioned) {
         _currentUser = null;
-        return const AuthResult.failure(AuthFailure.accountNotActivated);
+        return AuthResult.failure(
+          AuthFailure.accountNotActivated,
+          email: user.email,
+        );
       }
       if (user.status == AccountStatus.disabled) {
         _currentUser = null;
@@ -111,6 +162,37 @@ class AuthService {
       return const AuthResult.failure(AuthFailure.network);
     } catch (_) {
       _currentUser = null;
+      return const AuthResult.failure(AuthFailure.backend);
+    }
+  }
+
+  Future<AuthResult> activateStudent({
+    required String email,
+    required String activationCode,
+    required String password,
+  }) async {
+    try {
+      final result = await _backend.activateStudent(
+        email: email,
+        activationCode: activationCode,
+        password: password,
+      );
+      final user = result.user;
+      if (user == null) return result;
+      if (user.status == AccountStatus.disabled) {
+        return const AuthResult.failure(AuthFailure.accountDisabled);
+      }
+      if (user.status != AccountStatus.active) {
+        return AuthResult.failure(
+          AuthFailure.accountNotActivated,
+          email: user.email,
+        );
+      }
+      _currentUser = user;
+      return AuthResult.success(user);
+    } on AuthNetworkException {
+      return const AuthResult.failure(AuthFailure.network);
+    } catch (_) {
       return const AuthResult.failure(AuthFailure.backend);
     }
   }
@@ -138,4 +220,21 @@ class AuthService {
 /// Backends throw this when a request could not reach the service.
 class AuthNetworkException implements Exception {
   const AuthNetworkException();
+}
+
+class _DemoAccount {
+  _DemoAccount({
+    required this.id,
+    required this.role,
+    required this.status,
+    this.password,
+  });
+
+  final String id;
+  final AppUserRole role;
+  AccountStatus status;
+  String? password;
+
+  AppUser toUser(String email) =>
+      AppUser(id: id, email: email, role: role, status: status);
 }

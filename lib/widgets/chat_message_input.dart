@@ -5,9 +5,11 @@ class ChatMessageInput extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onSend,
+    this.isSending = false,
   });
   final TextEditingController controller;
   final VoidCallback onSend;
+  final bool isSending;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -20,6 +22,7 @@ class ChatMessageInput extends StatelessWidget {
             child: TextField(
               controller: controller,
               textInputAction: TextInputAction.send,
+              enabled: !isSending,
               onSubmitted: (_) => onSend(),
               style: const TextStyle(color: Colors.black, fontSize: 16),
               decoration: InputDecoration(
@@ -44,7 +47,7 @@ class ChatMessageInput extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           TextButton(
-            onPressed: onSend,
+            onPressed: isSending ? null : onSend,
             style: TextButton.styleFrom(
               backgroundColor: const Color(0xFFF0F0F0),
               side: const BorderSide(color: Colors.black26),
@@ -53,9 +56,9 @@ class ChatMessageInput extends StatelessWidget {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             ),
-            child: const Text(
-              'Send',
-              style: TextStyle(
+            child: Text(
+              isSending ? 'Sending...' : 'Send',
+              style: const TextStyle(
                 color: Colors.black,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,

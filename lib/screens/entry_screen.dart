@@ -16,6 +16,7 @@ class _EntryScreenState extends State<EntryScreen> {
   final _passwordController = TextEditingController();
   String? _loginError;
   bool _isSigningIn = false;
+  bool _hidePassword = true;
 
   static const Color black = Colors.black;
   static const Color fieldGray = Color(0xFFEEEEEE);
@@ -46,6 +47,13 @@ class _EntryScreenState extends State<EntryScreen> {
 
     final user = result.user;
     if (!result.isSuccess || user == null) {
+      if (result.failure == AuthFailure.accountNotActivated) {
+        await Navigator.of(context).pushNamed(
+          AppRoutes.activateAccount,
+          arguments: result.email ?? _emailController.text.trim(),
+        );
+        if (!mounted) return;
+      }
       setState(() {
         _isSigningIn = false;
         _loginError = _messageFor(result.failure);
@@ -67,6 +75,8 @@ class _EntryScreenState extends State<EntryScreen> {
       'Activate your provisioned Student account before signing in.',
     AuthFailure.accountDisabled =>
       'This account is disabled. Contact an administrator for help.',
+    AuthFailure.invalidActivationCode =>
+      'That activation code is not valid. Try again or contact support.',
     AuthFailure.network =>
       'We could not reach the service. Check your connection and try again.',
     AuthFailure.backend =>
@@ -78,6 +88,24 @@ class _EntryScreenState extends State<EntryScreen> {
   void _continueAsVisitor() {
     AuthService.instance.signOut();
     Navigator.of(context).pushNamed(AppRoutes.visitorChat);
+  }
+
+  void _showForgotPassword() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Password help'),
+        content: const Text(
+          'Account recovery will be connected to the approved backend. For now, contact the administrator who provisioned your Student account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -164,9 +192,31 @@ class _EntryScreenState extends State<EntryScreen> {
                           const SizedBox(height: 10),
                           TextField(
                             controller: _passwordController,
-                            obscureText: true,
+                            obscureText: _hidePassword,
                             onSubmitted: (_) => _signIn(),
-                            decoration: _fieldDecoration('Password'),
+                            decoration: _fieldDecoration(
+                              'Password',
+                              suffixIcon: IconButton(
+                                tooltip: _hidePassword
+                                    ? 'Show password'
+                                    : 'Hide password',
+                                icon: Icon(
+                                  _hidePassword
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                ),
+                                onPressed: () => setState(
+                                  () => _hidePassword = !_hidePassword,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _showForgotPassword,
+                              child: const Text('Forgot password?'),
+                            ),
                           ),
                           const SizedBox(height: 34),
                           SizedBox(
@@ -235,12 +285,13 @@ class _EntryScreenState extends State<EntryScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
+  InputDecoration _fieldDecoration(String hint, {Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(fontSize: 18, color: Colors.black45),
       filled: true,
       fillColor: fieldGray,
+      suffixIcon: suffixIcon,
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),

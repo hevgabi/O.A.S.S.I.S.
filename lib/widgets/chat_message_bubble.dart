@@ -8,11 +8,23 @@ class ChatMessageBubble extends StatelessWidget {
     required this.isUser,
     this.feedback,
     this.onFeedbackChanged,
+    this.isPending = false,
+    this.isFailed = false,
+    this.isArchived = false,
+    this.onRetry,
+    this.onEdit,
+    this.onArchive,
   });
   final String text;
   final bool isUser;
   final FeedbackType? feedback;
   final ValueChanged<FeedbackType>? onFeedbackChanged;
+  final bool isPending;
+  final bool isFailed;
+  final bool isArchived;
+  final VoidCallback? onRetry;
+  final VoidCallback? onEdit;
+  final VoidCallback? onArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +35,50 @@ class ChatMessageBubble extends StatelessWidget {
           constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.72,
           ),
-          child: _bubble(text),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _bubble(
+                isArchived ? 'This message was archived.' : text,
+                archived: isArchived,
+              ),
+              if (isPending) ...[
+                const SizedBox(height: 4),
+                const Text('Sending...', style: TextStyle(fontSize: 12)),
+              ],
+              if (isFailed) ...[
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Retry'),
+                ),
+              ],
+              if (!isPending &&
+                  !isFailed &&
+                  !isArchived &&
+                  (onEdit != null || onArchive != null))
+                PopupMenuButton<_MessageAction>(
+                  tooltip: 'Message options',
+                  onSelected: (action) {
+                    if (action == _MessageAction.edit) onEdit?.call();
+                    if (action == _MessageAction.archive) onArchive?.call();
+                  },
+                  itemBuilder: (context) => [
+                    if (onEdit != null)
+                      const PopupMenuItem(
+                        value: _MessageAction.edit,
+                        child: Text('Edit message'),
+                      ),
+                    if (onArchive != null)
+                      const PopupMenuItem(
+                        value: _MessageAction.archive,
+                        child: Text('Archive message'),
+                      ),
+                  ],
+                ),
+            ],
+          ),
         ),
       );
     }
@@ -68,11 +123,13 @@ class ChatMessageBubble extends StatelessWidget {
                 ),
                 child: _bubble(text),
               ),
-              const SizedBox(height: 8),
-              ResponseFeedbackControls(
-                value: feedback,
-                onChanged: onFeedbackChanged ?? (_) {},
-              ),
+              if (onFeedbackChanged != null) ...[
+                const SizedBox(height: 8),
+                ResponseFeedbackControls(
+                  value: feedback,
+                  onChanged: onFeedbackChanged!,
+                ),
+              ],
             ],
           ),
         ),
@@ -80,15 +137,21 @@ class ChatMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _bubble(String value) => Container(
+  Widget _bubble(String value, {bool archived = false}) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     decoration: BoxDecoration(
-      color: const Color(0xFFE5E5E5),
+      color: archived ? const Color(0xFFF5F5F5) : const Color(0xFFE5E5E5),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Text(
       value,
-      style: const TextStyle(color: Colors.black, fontSize: 16),
+      style: TextStyle(
+        color: Colors.black,
+        fontSize: 16,
+        fontStyle: archived ? FontStyle.italic : FontStyle.normal,
+      ),
     ),
   );
 }
+
+enum _MessageAction { edit, archive }

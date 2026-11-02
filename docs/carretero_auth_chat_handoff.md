@@ -23,6 +23,9 @@ Foundation commit: `534420a Prepare auth and student chat backend integration`
   the current demo credentials until the approved backend is available.
 - Added `AuthService.refreshSession()` as the session-restoration hook. It
   clears in-memory session data when no active session can be restored.
+- Added a local activation flow for provisioned Student accounts. The demo
+  accepts `provisioned@mail.com` with activation code `OASSIS-123` and lets the
+  Student choose a password.
 
 ### Login and route behavior
 
@@ -30,11 +33,15 @@ Foundation commit: `534420a Prepare auth and student chat backend integration`
   `Signing in...`.
 - The login screen gives a distinct message for each supported authentication
   failure state.
+- Added password visibility control and a password-help dialog that explains
+  the backend dependency for real account recovery.
+- Added a dedicated activation screen with email, activation-code, password,
+  validation, loading, and error states.
 - Student Chat is route-guarded. A signed-out user, Visitor, or Admin who
   attempts to open `/student-chat` is sent to the entry screen.
 - Existing Admin-route protection remains in place.
 
-### Persistent-chat data and backend contract
+### Local persistent-chat demo and backend contract
 
 - Added persistent data models for `Conversation`, `ChatMessage`, and
   `ResponseFeedback`.
@@ -54,10 +61,27 @@ Foundation commit: `534420a Prepare auth and student chat backend integration`
 `ChatBackendUnavailableException` records the expected state while no approved
 persistent-chat backend is configured.
 
+`DemoChatService` now implements the contract locally for Student UI work. It
+creates one in-memory conversation per Student, seeds enough history for
+pagination, and enforces the current signed-in Student in the demo layer.
+
+- Newest messages load first, while the UI displays messages chronologically.
+- Scrolling to the top loads older pages without duplicates and preserves the
+  visible scroll position.
+- Sending uses a visible pending state and disables duplicate sends. Typing a
+  message containing `fail` intentionally produces a recoverable demo failure
+  with a Retry button.
+- Student-authored messages have Edit and Archive actions. Archive is shown as
+  a soft-deleted message, never removed from the local service.
+- Thumbs-up/down controls appear only on OASSIS response messages. Existing
+  local ratings are read on load and updated when the Student changes a rating.
+
 ### Validation completed
 
 - `flutter analyze` completed with no issues.
-- `flutter test` passed with four tests:
+- `flutter test` passed with five tests:
+  - activation, conversation creation, pagination, send, edit, archive, and
+    feedback work through the local demo service;
   - provisioned Student is blocked from sign-in pending activation;
   - signed-out user is denied Student Chat access;
   - Student login enters Student Chat and is denied Admin routes;
@@ -68,15 +92,8 @@ persistent-chat backend is configured.
 These items require a confirmed backend contract and must not be simulated as
 production behavior in the client.
 
-- Provisioned-account activation screen and activation request.
 - Real backend implementation of `AuthBackend`.
 - Secure token/session storage and actual session refresh.
-- Persistent conversation creation/loading.
-- Newest-first message loading and upward history pagination UI.
-- Pending, retry, and error UI for a real message-send operation.
-- Edit controls and save flow for Student-authored messages.
-- Archive confirmation and soft-archive UI behavior.
-- Read/create/update feedback behavior in the UI.
 - Real ownership checks, role checks, and server-side authorization.
 - Full seed-data integration test sequence.
 
@@ -104,6 +121,8 @@ Until the backend is connected, use these demo credentials:
 |---|---|---|
 | Student | `student@mail.com` | `123` |
 | Admin | `admin@mail.com` | `123` |
+| Provisioned Student | `provisioned@mail.com` | Activate with code `OASSIS-123` and choose a password |
+| Disabled Student | `disabled@mail.com` | `123` |
 
 Run the current web app with:
 

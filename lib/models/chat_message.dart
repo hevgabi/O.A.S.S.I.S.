@@ -29,4 +29,20 @@ class ChatMessage {
   bool get isOassisResponse => author == MessageAuthor.oassis;
 
   bool get isArchived => archivedAt != null;
+
+  ChatMessage copyWith({
+    String? content,
+    DateTime? editedAt,
+    DateTime? archivedAt,
+    MessageDeliveryState? deliveryState,
+  }) => ChatMessage(
+    id: id,
+    conversationId: conversationId,
+    author: author,
+    content: content ?? this.content,
+    createdAt: createdAt,
+    editedAt: editedAt ?? this.editedAt,
+    archivedAt: archivedAt ?? this.archivedAt,
+    deliveryState: deliveryState ?? this.deliveryState,
+  );
 }
