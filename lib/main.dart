@@ -42,6 +42,13 @@ class MyApp extends StatelessWidget {
       );
     }
 
+    if (_isStudentRoute(routeName) && !AuthService.instance.isStudent) {
+      return MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => const EntryScreen(),
+      );
+    }
+
     final page = switch (routeName) {
       AppRoutes.splash => const SplashScreen(),
       AppRoutes.entry => const EntryScreen(),
@@ -62,4 +69,6 @@ class MyApp extends StatelessWidget {
     AppRoutes.interactionLogs => true,
     _ => false,
   };
+
+  bool _isStudentRoute(String routeName) => routeName == AppRoutes.studentChat;
 }

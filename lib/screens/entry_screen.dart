@@ -15,6 +15,7 @@ class _EntryScreenState extends State<EntryScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _loginError;
+  bool _isSigningIn = false;
 
   static const Color black = Colors.black;
   static const Color fieldGray = Color(0xFFEEEEEE);
@@ -28,16 +29,26 @@ class _EntryScreenState extends State<EntryScreen> {
     super.dispose();
   }
 
-  void _signIn() {
-    final user = AuthService.instance.signIn(
+  Future<void> _signIn() async {
+    if (_isSigningIn) return;
+
+    setState(() {
+      _isSigningIn = true;
+      _loginError = null;
+    });
+
+    final result = await AuthService.instance.signIn(
       email: _emailController.text,
       password: _passwordController.text,
     );
 
-    if (user == null) {
+    if (!mounted) return;
+
+    final user = result.user;
+    if (!result.isSuccess || user == null) {
       setState(() {
-        _loginError =
-            'Use admin@mail.com or student@mail.com with password 123.';
+        _isSigningIn = false;
+        _loginError = _messageFor(result.failure);
       });
       return;
     }
@@ -50,6 +61,19 @@ class _EntryScreenState extends State<EntryScreen> {
       context,
     ).pushNamedAndRemoveUntil(destination, (route) => false);
   }
+
+  String _messageFor(AuthFailure? failure) => switch (failure) {
+    AuthFailure.accountNotActivated =>
+      'Activate your provisioned Student account before signing in.',
+    AuthFailure.accountDisabled =>
+      'This account is disabled. Contact an administrator for help.',
+    AuthFailure.network =>
+      'We could not reach the service. Check your connection and try again.',
+    AuthFailure.backend =>
+      'The service is unavailable. Please try again later.',
+    AuthFailure.signedOut => 'Your session ended. Please sign in again.',
+    _ => 'Incorrect email or password.',
+  };
 
   void _continueAsVisitor() {
     AuthService.instance.signOut();
@@ -148,7 +172,7 @@ class _EntryScreenState extends State<EntryScreen> {
                           SizedBox(
                             height: 58,
                             child: ElevatedButton(
-                              onPressed: _signIn,
+                              onPressed: _isSigningIn ? null : _signIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: buttonGray,
                                 foregroundColor: black,
@@ -157,8 +181,8 @@ class _EntryScreenState extends State<EntryScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: const Text(
-                                'Sign in',
+                              child: Text(
+                                _isSigningIn ? 'Signing in...' : 'Sign in',
                                 style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w600,
