@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import '../app_routes.dart';
+import '../services/auth_service.dart';
 import '../widgets/chat_message_bubble.dart';
 import '../widgets/chat_message_input.dart';
 import '../widgets/response_feedback_controls.dart';
@@ -58,6 +61,13 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
   }
 
+  void _logOut() {
+    AuthService.instance.signOut();
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.entry, (route) => false);
+  }
+
   String _getPlaceholderResponse(String message) {
     final lower = message.toLowerCase();
     if (lower.contains('admission') || lower.contains('office')) {
@@ -80,27 +90,58 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(children: [
-              const Expanded(child: Text('OASSIS', style: TextStyle(
-                color: Colors.black, fontSize: 30,
-                fontWeight: FontWeight.w800, letterSpacing: -0.5,
-              ))),
-              TextButton(
-                onPressed: () { if (Navigator.canPop(context)) Navigator.pop(context); },
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFF4F4F4),
-                  side: const BorderSide(color: Color(0xFFBDBDBD)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'OASSIS',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ),
-                child: const Text('Profile', style: TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w500)),
-              ),
-            ]),
+                TextButton(
+                  onPressed: _logOut,
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFF4F4F4),
+                    side: const BorderSide(color: Color(0xFFBDBDBD)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  child: const Text(
+                    'Log out',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const Divider(color: Color(0xFFE0E0E0), thickness: 1, height: 1),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Align(alignment: Alignment.centerLeft, child: Text('Student', style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600))),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Student',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
           Expanded(
             child: ListView.builder(
@@ -115,7 +156,8 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
                     text: message.text,
                     isUser: message.isUser,
                     feedback: message.feedback,
-                    onFeedbackChanged: (feedback) => setState(() => message.feedback = feedback),
+                    onFeedbackChanged: (feedback) =>
+                        setState(() => message.feedback = feedback),
                   ),
                 );
               },

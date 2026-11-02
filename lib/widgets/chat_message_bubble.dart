@@ -1,4 +1,4 @@
-mimport 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'response_feedback_controls.dart';
 
 class ChatMessageBubble extends StatelessWidget {
