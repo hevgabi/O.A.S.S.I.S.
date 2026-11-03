@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_routes.dart';
 import 'screens/admin/interaction_logs_screen.dart';
@@ -12,7 +13,16 @@ import 'screens/visitor_chat_screen.dart';
 import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+// Changed: main() is now async so Supabase can connect before the app starts.
+// The URL and key are read from env.json (run with --dart-define-from-file=env.json).
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: const String.fromEnvironment('SUPABASE_URL'),
+    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
+  );
+ 
   runApp(const MyApp());
 }
 
@@ -73,6 +83,5 @@ class MyApp extends StatelessWidget {
     AppRoutes.interactionLogs => true,
     _ => false,
   };
-
   bool _isStudentRoute(String routeName) => routeName == AppRoutes.studentChat;
 }
