@@ -8,14 +8,14 @@
 --   student@mail.com      Student, active
 --   newstudent@mail.com   Student, provisioned (must call activate_my_account())
 
--- ---------- profiles ----------
+-- profiles --
 insert into public.profiles (profile_id, email, role, account_status, activated_at, created_at) values
   ('00000000-0000-4000-8000-0000000000a1', 'admin@mail.com',      'admin',   'active',      '2026-10-01 08:00+00', '2026-10-01 07:00+00'),
   ('00000000-0000-4000-8000-0000000000b1', 'student@mail.com',    'student', 'active',      '2026-10-02 08:00+00', '2026-10-01 07:00+00'),
   ('00000000-0000-4000-8000-0000000000b2', 'newstudent@mail.com', 'student', 'provisioned', null,                  '2026-10-01 07:00+00')
 on conflict do nothing;
 
--- ---------- conversation for the active Student ----------
+-- conversation for the active Student --
 insert into public.conversations (conversation_id, student_profile_id, created_at, last_activity_at) values
   ('00000000-0000-4000-8000-0000000000c1', '00000000-0000-4000-8000-0000000000b1',
    '2026-10-05 09:00+00', '2026-10-05 09:03+00')
@@ -35,7 +35,7 @@ insert into public.messages (message_id, conversation_id, sender_type, content, 
    'I could not find that information. Your question was sent to an Admin for review.', '2026-10-05 09:03:15+00')
 on conflict do nothing;
 
--- ---------- feedback ----------
+-- feedback --
 insert into public.response_feedback (feedback_id, response_message_id, rating, submitted_at) values
   ('00000000-0000-4000-8000-0000000000e1', '00000000-0000-4000-8000-0000000000d2', 'up', '2026-10-05 09:01+00')
 on conflict do nothing;
