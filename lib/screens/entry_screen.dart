@@ -15,6 +15,10 @@ class _EntryScreenState extends State<EntryScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _loginError;
+  String? _emailError;
+  String? _passwordError;
+
+  static final RegExp _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   static const Color black = Colors.black;
   static const Color fieldGray = Color(0xFFEEEEEE);
@@ -29,6 +33,26 @@ class _EntryScreenState extends State<EntryScreen> {
   }
 
   void _signIn() {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    String? emailError;
+    if (email.isEmpty) {
+      emailError = 'Enter your email address.';
+    } else if (!_emailPattern.hasMatch(email)) {
+      emailError = 'Enter a valid email, like name@mail.com.';
+    }
+    final passwordError = password.isEmpty ? 'Enter your password.' : null;
+
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+        _loginError = null;
+      });
+      return;
+    }
+
     final user = AuthService.instance.signIn(
       email: _emailController.text,
       password: _passwordController.text,
@@ -36,6 +60,8 @@ class _EntryScreenState extends State<EntryScreen> {
 
     if (user == null) {
       setState(() {
+        _emailError = null;
+        _passwordError = null;
         _loginError =
             'Use admin@mail.com or student@mail.com with password 123.';
       });
@@ -56,6 +82,16 @@ class _EntryScreenState extends State<EntryScreen> {
     Navigator.of(context).pushNamed(AppRoutes.visitorChat);
   }
 
+  void _clearErrors() {
+    if (_emailError != null || _passwordError != null || _loginError != null) {
+      setState(() {
+        _emailError = null;
+        _passwordError = null;
+        _loginError = null;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,6 +102,7 @@ class _EntryScreenState extends State<EntryScreen> {
             final compact = constraints.maxHeight < 650;
 
             return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Center(
@@ -122,11 +159,19 @@ class _EntryScreenState extends State<EntryScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          TextField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            decoration: _fieldDecoration('Email'),
+                          Semantics(
+                            label: 'Email address',
+                            textField: true,
+                            child: TextField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              onChanged: (_) => _clearErrors(),
+                              decoration: _fieldDecoration(
+                                'Email',
+                                errorText: _emailError,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 26),
                           const Text(
@@ -138,11 +183,20 @@ class _EntryScreenState extends State<EntryScreen> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            onSubmitted: (_) => _signIn(),
-                            decoration: _fieldDecoration('Password'),
+                          Semantics(
+                            label: 'Password',
+                            textField: true,
+                            child: TextField(
+                              controller: _passwordController,
+                              obscureText: true,
+                              textInputAction: TextInputAction.done,
+                              onChanged: (_) => _clearErrors(),
+                              onSubmitted: (_) => _signIn(),
+                              decoration: _fieldDecoration(
+                                'Password',
+                                errorText: _passwordError,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 34),
                           SizedBox(
@@ -168,10 +222,13 @@ class _EntryScreenState extends State<EntryScreen> {
                           ),
                           if (_loginError != null) ...[
                             const SizedBox(height: 12),
-                            Text(
-                              _loginError!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: black),
+                            Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                _loginError!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: black),
+                              ),
                             ),
                           ],
                           const SizedBox(height: 20),
@@ -211,9 +268,16 @@ class _EntryScreenState extends State<EntryScreen> {
     );
   }
 
-  InputDecoration _fieldDecoration(String hint) {
+  InputDecoration _fieldDecoration(String hint, {String? errorText}) {
     return InputDecoration(
       hintText: hint,
+      errorText: errorText,
+      errorMaxLines: 2,
+      errorStyle: const TextStyle(
+        color: black,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
       hintStyle: const TextStyle(fontSize: 18, color: Colors.black45),
       filled: true,
       fillColor: fieldGray,
@@ -227,6 +291,14 @@ class _EntryScreenState extends State<EntryScreen> {
         borderSide: const BorderSide(color: borderGray),
       ),
       focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(9),
+        borderSide: const BorderSide(color: black, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(9),
+        borderSide: const BorderSide(color: black, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(9),
         borderSide: const BorderSide(color: black, width: 1.5),
       ),
