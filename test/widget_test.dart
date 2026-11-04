@@ -17,6 +17,9 @@ class _FakeAuthBackend implements AuthBackend {
   Future<AppUser?> refreshSession() async => null;
 
   @override
+  Future<void> signOut() async {}
+
+  @override
   Future<AuthResult> activateStudent({
     required String email,
     required String activationCode,
