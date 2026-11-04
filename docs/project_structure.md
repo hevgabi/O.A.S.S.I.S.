@@ -1,18 +1,20 @@
 # OASSIS Flutter Project Structure
 
-This is a starting structure for the confirmed OASSIS scope. The Dart files
-listed below are placeholders unless implementation is added by the team.
+The Flutter app contains entry, Visitor chat, Student chat, and Admin prototype
+screens. Admin data is currently held in local in-memory services; it is sample
+data and is lost when the app process ends.
 
-- `lib/main.dart`: app entry point; currently runs the Flutter starter screen.
-- `lib/app_routes.dart`: navigation between screens.
-- `lib/theme/`: shared colors and app styles.
-- `lib/screens/`: entry, visitor chat, student chat, and admin screens.
-- `lib/models/`: data used by the app for chat, accounts, and admin review.
-- `lib/services/`: client-side access to authentication, chat, and admin data.
-- `lib/widgets/`: shared chat and feedback UI components.
-- `test/`: Flutter tests.
-- `pubspec.yaml`: project settings, dependencies, and declared assets.
+- `lib/main.dart` and `lib/app_routes.dart`: app startup, navigation, and the
+  Admin route guard.
+- `lib/screens/`: entry, chat, and Admin knowledge/review screens.
+- `lib/models/`: UI/domain objects for chat, knowledge entries, inquiries, and
+  interaction logs.
+- `lib/services/`: demo authentication and in-memory chat/Admin data adapters.
+- `lib/widgets/` and `lib/theme/`: shared presentation components and styling.
+- `test/`: Flutter widget and service tests.
+- `docs/admin_crud_regression.md`: Admin verification steps and prototype limits.
 
-The backend, database, authentication method, AI provider, and target platforms
-remain to be decided. These placeholders do not implement those choices or the
-server-side processing. Add or revise files as the team develops the app.
+No persistent backend contract is configured. The Admin in-memory adapters
+should be replaced only after the team approves the API/database contract and
+access rules. Current route checks are client-side navigation controls; they do
+not replace server-side authorization or database security policies.
