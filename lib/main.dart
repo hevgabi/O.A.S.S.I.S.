@@ -5,11 +5,13 @@ import 'app_routes.dart';
 import 'screens/admin/interaction_logs_screen.dart';
 import 'screens/admin/knowledge_base_screen.dart';
 import 'screens/admin/unanswered_inquiries_screen.dart';
+import 'screens/activate_account_screen.dart';
 import 'screens/entry_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/student_chat_screen.dart';
 import 'screens/visitor_chat_screen.dart';
 import 'services/auth_service.dart';
+import 'services/chat_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -21,6 +23,12 @@ Future<void> main() async {
     await Supabase.initialize(
       url: supabaseUrl,
       publishableKey: supabasePublishableKey,
+    );
+    AuthService.instance.configureBackend(
+      SupabaseAuthBackend(Supabase.instance.client),
+    );
+    StudentChatServices.configure(
+      SupabaseChatService(Supabase.instance.client),
     );
   }
 
@@ -54,9 +62,19 @@ class MyApp extends StatelessWidget {
       );
     }
 
+    if (_isStudentRoute(routeName) && !AuthService.instance.isStudent) {
+      return MaterialPageRoute<void>(
+        settings: settings,
+        builder: (_) => const EntryScreen(),
+      );
+    }
+
     final page = switch (routeName) {
       AppRoutes.splash => const SplashScreen(),
       AppRoutes.entry => const EntryScreen(),
+      AppRoutes.activateAccount => ActivateAccountScreen(
+        initialEmail: settings.arguments as String?,
+      ),
       AppRoutes.visitorChat => const VisitorChatScreen(),
       AppRoutes.studentChat => const StudentChatScreen(),
       AppRoutes.knowledgeBase => const KnowledgeBaseScreen(),
@@ -74,4 +92,5 @@ class MyApp extends StatelessWidget {
     AppRoutes.interactionLogs => true,
     _ => false,
   };
+  bool _isStudentRoute(String routeName) => routeName == AppRoutes.studentChat;
 }

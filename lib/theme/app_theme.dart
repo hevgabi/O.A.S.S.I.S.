@@ -7,8 +7,6 @@ class AppTheme {
   static final light = ThemeData(
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.background,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: AppColors.text,
-    ),
+    colorScheme: ColorScheme.fromSeed(seedColor: AppColors.text),
   );
 }
