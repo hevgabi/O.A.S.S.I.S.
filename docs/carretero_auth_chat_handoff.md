@@ -19,8 +19,11 @@ Foundation commit: `534420a Prepare auth and student chat backend integration`
   credentials, unactivated accounts, disabled accounts, signed-out state,
   network failures, and backend failures.
 - Added the `AuthBackend` contract with `signIn` and `refreshSession` methods.
-- Kept `DemoAuthBackend` as the active implementation. It intentionally keeps
-  the current demo credentials until the approved backend is available.
+- Added `SupabaseAuthBackend`. When the app receives both `SUPABASE_URL` and
+  `SUPABASE_ANON_KEY`, it signs in with Supabase Auth, activates a provisioned
+  profile through `activate_my_account`, then loads the authenticated profile.
+- The app keeps `DemoAuthBackend` only when Supabase environment values are not
+  supplied, so local UI testing remains possible.
 - Added `AuthService.refreshSession()` as the session-restoration hook. It
   clears in-memory session data when no active session can be restored.
 - Added a local activation flow for provisioned Student accounts. The demo
@@ -61,6 +64,11 @@ Foundation commit: `534420a Prepare auth and student chat backend integration`
 `ChatBackendUnavailableException` records the expected state while no approved
 persistent-chat backend is configured.
 
+`SupabaseChatService` now calls the approved RPCs for conversation creation,
+message history, sending, editing, archiving, and response feedback. It uses
+the backend keyset cursor for older history and reads existing ratings through
+the row-level-security protected `response_feedback` table.
+
 `DemoChatService` now implements the contract locally for Student UI work. It
 creates one in-memory conversation per Student, seeds enough history for
 pagination, and enforces the current signed-in Student in the demo layer.
@@ -92,26 +100,23 @@ pagination, and enforces the current signed-in Student in the demo layer.
 These items require a confirmed backend contract and must not be simulated as
 production behavior in the client.
 
-- Real backend implementation of `AuthBackend`.
-- Secure token/session storage and actual session refresh.
-- Real ownership checks, role checks, and server-side authorization.
-- Full seed-data integration test sequence.
+- Apply the backend migrations and seed data to the team's real Supabase
+  development project.
+- Create matching Supabase Auth users for the seeded profile emails.
+- Add the OASSIS Edge Function. The RPC `send_student_message` saves a Student
+  message, but the server-side function must still save the OASSIS response.
+- Run the full seed-data integration sequence against the real development
+  project, including auth, activation, pagination, edit, archive, and feedback.
 
-## Backend information needed before integration
+## Supabase setup required before live mode
 
-1. Backend platform and client setup: Supabase, Firebase, or REST API.
-2. Authentication endpoints, request fields, response payloads, and error
-   codes for sign-in, session refresh, sign-out, disabled accounts, and
-   provisioned accounts.
-3. Activation design: token/link or activation code, required fields, expiry,
-   and the backend operation that saves the Student-selected password.
-4. Student Profile and Conversation schema or API payloads, including the
-   rule that enforces one conversation per Student.
-5. Message pagination format and cursor semantics.
-6. Send-message request/response format, including OASSIS response creation.
-7. Authorization and error responses for edit, archive, and feedback actions.
-8. Seed credentials and test records for an active Student, provisioned
-   Student, disabled Student, conversation, messages, and feedback.
+1. Run `supabase/all_in_one_dev_setup.sql` in the development project, then
+   run `supabase/tests/access_checks.sql` and confirm its `ALL PASS` result.
+2. Create auto-confirmed Supabase Auth users matching the seeded profile
+   emails: `admin@mail.com`, `student@mail.com`, and `newstudent@mail.com`.
+3. Copy `env.example.json` to a local, git-ignored `env.json`.
+4. Run the app with `flutter run -d chrome --dart-define-from-file=env.json`.
+5. Keep public self-registration and anonymous sign-ins disabled in Supabase.
 
 ## Current demo behavior
 
@@ -128,6 +133,12 @@ Run the current web app with:
 
 ```powershell
 flutter run -d chrome
+```
+
+To use the real Supabase backend after completing the setup above:
+
+```powershell
+flutter run -d chrome --dart-define-from-file=env.json
 ```
 
 The Windows desktop build was not verified because this computer does not have

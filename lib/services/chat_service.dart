@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/chat_message.dart';
 import '../models/conversation.dart';
 import '../models/response_feedback.dart';
@@ -60,6 +62,204 @@ abstract interface class ChatService {
 /// Raised while no approved persistent-chat backend is configured.
 class ChatBackendUnavailableException implements Exception {
   const ChatBackendUnavailableException();
+}
+
+class StudentChatServices {
+  StudentChatServices._();
+
+  static ChatService _current = DemoChatService.instance;
+
+  static ChatService get current => _current;
+
+  static void configure(ChatService service) => _current = service;
+}
+
+/// Calls the Supabase RPCs documented in `backend_service_contracts.md`.
+class SupabaseChatService implements ChatService {
+  const SupabaseChatService(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<Conversation> getOrCreateStudentConversation({
+    required String studentId,
+  }) async {
+    _requireCurrentStudent(studentId);
+    try {
+      final row = Map<String, dynamic>.from(
+        await _client.rpc('get_or_create_my_conversation') as Map,
+      );
+      return Conversation(
+        id: row['conversation_id'] as String,
+        studentId: row['student_profile_id'] as String,
+        createdAt: DateTime.parse(row['created_at'] as String),
+      );
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<MessagePage> fetchMessages({
+    required String conversationId,
+    String? beforeCursor,
+    int pageSize = 30,
+  }) async {
+    final params = <String, dynamic>{'p_limit': pageSize};
+    if (beforeCursor != null) {
+      final parts = beforeCursor.split('|');
+      if (parts.length == 2) {
+        params['p_before_sent_at'] = parts[0];
+        params['p_before_message_id'] = parts[1];
+      }
+    }
+    try {
+      final rows = List<dynamic>.from(
+        await _client.rpc('get_my_messages', params: params) as List,
+      );
+      final messages = rows
+          .map((row) => _messageFromRow(Map<String, dynamic>.from(row as Map)))
+          .toList();
+      final last = messages.isEmpty ? null : messages.last;
+      return MessagePage(
+        messages: messages,
+        nextOlderCursor: messages.length == pageSize && last != null
+            ? '${last.createdAt.toUtc().toIso8601String()}|${last.id}'
+            : null,
+      );
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<List<ChatMessage>> sendStudentMessage({
+    required String conversationId,
+    required String content,
+  }) async {
+    try {
+      final row = Map<String, dynamic>.from(
+        await _client.rpc(
+              'send_student_message',
+              params: {'p_content': content},
+            )
+            as Map,
+      );
+      // OASSIS responses are written by a server-side Edge Function. Refresh
+      // history after that function completes to display its response.
+      return [_messageFromRow(row)];
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<ChatMessage> editStudentMessage({
+    required String messageId,
+    required String content,
+  }) async {
+    try {
+      final row = Map<String, dynamic>.from(
+        await _client.rpc(
+              'edit_my_message',
+              params: {'p_message_id': messageId, 'p_content': content},
+            )
+            as Map,
+      );
+      return _messageFromRow(row);
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<void> archiveStudentMessage({required String messageId}) async {
+    try {
+      await _client.rpc(
+        'archive_my_message',
+        params: {'p_message_id': messageId},
+      );
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<ResponseFeedback?> fetchResponseFeedback({
+    required String responseMessageId,
+  }) async {
+    try {
+      final row = await _client
+          .from('response_feedback')
+          .select()
+          .eq('response_message_id', responseMessageId)
+          .maybeSingle();
+      return row == null ? null : _feedbackFromRow(row);
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  @override
+  Future<ResponseFeedback> upsertResponseFeedback({
+    required String responseMessageId,
+    required ResponseRating rating,
+  }) async {
+    try {
+      final row = Map<String, dynamic>.from(
+        await _client.rpc(
+              'submit_response_feedback',
+              params: {
+                'p_response_message_id': responseMessageId,
+                'p_rating': rating == ResponseRating.up ? 'up' : 'down',
+              },
+            )
+            as Map,
+      );
+      return _feedbackFromRow(row);
+    } on PostgrestException catch (error) {
+      throw ChatOperationException(_messageFor(error));
+    }
+  }
+
+  ChatMessage _messageFromRow(Map<String, dynamic> row) => ChatMessage(
+    id: row['message_id'] as String,
+    conversationId: row['conversation_id'] as String,
+    author: row['sender_type'] == 'oassis'
+        ? MessageAuthor.oassis
+        : MessageAuthor.student,
+    content: row['content'] as String,
+    createdAt: DateTime.parse(row['sent_at'] as String),
+    editedAt: row['edited_at'] == null
+        ? null
+        : DateTime.parse(row['edited_at'] as String),
+    archivedAt: row['archived_at'] == null
+        ? null
+        : DateTime.parse(row['archived_at'] as String),
+  );
+
+  ResponseFeedback _feedbackFromRow(Map<String, dynamic> row) =>
+      ResponseFeedback(
+        id: row['feedback_id'] as String,
+        messageId: row['response_message_id'] as String,
+        studentId: AuthService.instance.currentUser!.id,
+        rating: row['rating'] == 'up' ? ResponseRating.up : ResponseRating.down,
+        updatedAt: DateTime.parse(row['submitted_at'] as String),
+      );
+
+  void _requireCurrentStudent(String studentId) {
+    if (!AuthService.instance.isStudent ||
+        AuthService.instance.currentUser?.id != studentId) {
+      throw const ChatOperationException('Student access is required.');
+    }
+  }
+
+  String _messageFor(PostgrestException error) => switch (error.code) {
+    '42501' => 'Your session no longer has access. Please sign in again.',
+    'P0002' => 'That item is no longer available.',
+    '22023' => 'Please check the message and try again.',
+    _ => 'The chat service is unavailable. Please try again.',
+  };
 }
 
 /// In-memory demonstration of the persistent-chat contract.

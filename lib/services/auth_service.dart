@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/app_user.dart';
 
 enum AuthFailure {
@@ -36,6 +38,8 @@ abstract interface class AuthBackend {
   });
 
   Future<AppUser?> refreshSession();
+
+  Future<void> signOut();
 }
 
 /// Temporary demo implementation. Keep it until the approved backend is ready.
@@ -112,6 +116,104 @@ class DemoAuthBackend implements AuthBackend {
 
   @override
   Future<AppUser?> refreshSession() async => null;
+
+  @override
+  Future<void> signOut() async {}
+}
+
+/// Supabase implementation of the approved account flow.
+class SupabaseAuthBackend implements AuthBackend {
+  const SupabaseAuthBackend(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<AuthResult> signIn({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password,
+      );
+      if (response.user == null) {
+        return const AuthResult.failure(AuthFailure.invalidCredentials);
+      }
+      await _activateIfProvisioned();
+      return AuthResult.success(await _getProfile());
+    } on AuthException {
+      return const AuthResult.failure(AuthFailure.invalidCredentials);
+    } on PostgrestException catch (error) {
+      return AuthResult.failure(_failureFor(error), email: email.trim());
+    } catch (_) {
+      return const AuthResult.failure(AuthFailure.network);
+    }
+  }
+
+  @override
+  Future<AuthResult> activateStudent({
+    required String email,
+    required String activationCode,
+    required String password,
+  }) async {
+    try {
+      if (_client.auth.currentSession == null) {
+        return const AuthResult.failure(AuthFailure.signedOut);
+      }
+      await _activateIfProvisioned();
+      return AuthResult.success(await _getProfile());
+    } on PostgrestException catch (error) {
+      return AuthResult.failure(_failureFor(error), email: email.trim());
+    } catch (_) {
+      return const AuthResult.failure(AuthFailure.network);
+    }
+  }
+
+  @override
+  Future<AppUser?> refreshSession() async {
+    if (_client.auth.currentSession == null) return null;
+    try {
+      return await _getProfile();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> signOut() => _client.auth.signOut();
+
+  Future<void> _activateIfProvisioned() async {
+    try {
+      await _client.rpc('activate_my_account');
+    } on PostgrestException catch (error) {
+      if (error.code != 'P0002') rethrow;
+    }
+  }
+
+  Future<AppUser> _getProfile() async {
+    final response = await _client.rpc('get_my_profile');
+    final profile = Map<String, dynamic>.from(response as Map);
+    final role = profile['role'] as String;
+    final status = profile['account_status'] as String;
+    return AppUser(
+      id: profile['profile_id'] as String,
+      email: profile['email'] as String,
+      role: role == 'admin' ? AppUserRole.admin : AppUserRole.student,
+      status: switch (status) {
+        'active' => AccountStatus.active,
+        'disabled' => AccountStatus.disabled,
+        _ => AccountStatus.provisioned,
+      },
+    );
+  }
+
+  AuthFailure _failureFor(PostgrestException error) {
+    if (error.code == '42501') return AuthFailure.accountDisabled;
+    if (error.code == 'P0002') return AuthFailure.accountNotActivated;
+    if (error.code == '22023') return AuthFailure.invalidActivationCode;
+    return AuthFailure.backend;
+  }
 }
 
 class AuthService {
@@ -119,7 +221,7 @@ class AuthService {
 
   static final AuthService instance = AuthService();
 
-  final AuthBackend _backend;
+  AuthBackend _backend;
 
   AppUser? _currentUser;
 
@@ -130,6 +232,11 @@ class AuthService {
   bool get isAdmin => _currentUser?.role == AppUserRole.admin;
 
   bool get isStudent => _currentUser?.role == AppUserRole.student;
+
+  void configureBackend(AuthBackend backend) {
+    _currentUser = null;
+    _backend = backend;
+  }
 
   Future<AuthResult> signIn({
     required String email,
@@ -212,8 +319,13 @@ class AuthService {
     }
   }
 
-  void signOut() {
+  Future<void> signOut() async {
     _currentUser = null;
+    try {
+      await _backend.signOut();
+    } catch (_) {
+      // The local protected state is already cleared even if remote sign-out fails.
+    }
   }
 }
 

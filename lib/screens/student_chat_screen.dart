@@ -19,7 +19,7 @@ class StudentChatScreen extends StatefulWidget {
 class _StudentChatScreenState extends State<StudentChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  final ChatService _chatService = DemoChatService.instance;
+  final ChatService _chatService = StudentChatServices.current;
   final Map<String, ResponseRating> _ratings = {};
 
   List<ChatMessage> _messages = [];
@@ -195,7 +195,7 @@ class _StudentChatScreenState extends State<StudentChatScreen> {
         _messages = [
           for (final message in _messages)
             if (message.id == pending.id) savedMessages.first else message,
-          savedMessages.last,
+          if (savedMessages.length > 1) ...savedMessages.skip(1),
         ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
         _isSending = false;
       });
